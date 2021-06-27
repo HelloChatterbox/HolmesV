@@ -373,7 +373,7 @@ class SkillManager(Thread):
             # this patch ensures each skill gets it's own
             # connection that can't be manipulated by others
             # https://github.com/EvilJarbas/BusBrickerSkill
-            bus = MessageBusClient(cache=True)
+            bus = MessageBusClient()
             bus.run_in_thread()
         else:
             bus = self.bus
