@@ -13,15 +13,30 @@
 # limitations under the License.
 #
 import re
-
-from mycroft.util.parse import normalize
+from mycroft_bus_client import Message as MycroftMessage
 from mycroft_bus_client.message import dig_for_message
-import mycroft_bus_client
+from mycroft.messagebus.load_config import get_bus_config
+from mycroft.util.parse import normalize
 
 
-class Message(mycroft_bus_client.Message):
+class Message(MycroftMessage):
     """Mycroft specific Message class."""
-    def utterance_remainder(self):
+
+    def __new__(cls, *args, **kwargs):
+        bus_config = get_bus_config()
+        if bus_config.get("use_chatterbox"):
+            # chatterbox bus client is a drop in replacement
+            # it adds functionality to encrypt payloads
+            # this is done transparently from the .conf
+            from chatterbox_bus_client.message import \
+                Message as ChatterboxMessage
+            return ChatterboxMessage(*args, **kwargs)
+
+        # utterance_remainder is not available on mycroft-bus-client
+        MycroftMessage.utterance_remainder = cls.__utterance_remainder
+        return MycroftMessage(*args, **kwargs)
+
+    def __utterance_remainder(self):
         """
         For intents get the portion not consumed by Adapt.
 
