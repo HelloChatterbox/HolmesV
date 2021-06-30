@@ -26,18 +26,27 @@ from mycroft.util.log import LOG
 CORE_VERSION_MAJOR = 21
 CORE_VERSION_MINOR = 2
 CORE_VERSION_BUILD = 1
+SYNC_DATE = 20210908  # YYYYMMDD date of sync with mycroft-core
+PATCH_VERSION = 1  # increment by 1 on every HolmesV release
+                    # set to 1 when SYNC_DATE changes
 # END_VERSION_BLOCK
+
 
 CORE_VERSION_TUPLE = (CORE_VERSION_MAJOR,
                       CORE_VERSION_MINOR,
                       CORE_VERSION_BUILD)
 CORE_VERSION_STR = '.'.join(map(str, CORE_VERSION_TUPLE))
 
+HOLMES_VERSION_TUPLE = (SYNC_DATE, PATCH_VERSION)
+y, m, d = str(SYNC_DATE)[:4], str(SYNC_DATE)[4:6], str(SYNC_DATE)[-2:]
+HOLMES_VERSION_STR = f'{y}.{m}.{d}.a{PATCH_VERSION} (HolmesIV)'
+
 
 class VersionManager:
     @staticmethod
     def get():
-        data_dir = expanduser(Configuration.get()['data_dir'])
+        data_dir = expanduser(Configuration.get().get('data_dir',
+                                                      "/opt/mycroft"))
         version_file = join(data_dir, 'version.json')
         if exists(version_file) and isfile(version_file):
             try:
@@ -45,7 +54,9 @@ class VersionManager:
                     return json.load(f)
             except Exception:
                 LOG.error("Failed to load version from '%s'" % version_file)
-        return {"coreVersion": CORE_VERSION_STR, "enclosureVersion": None}
+        return {"coreVersion": CORE_VERSION_STR,
+                "HolmesVersion": HOLMES_VERSION_STR,
+                "enclosureVersion": None}
 
 
 def check_version(version_string):
