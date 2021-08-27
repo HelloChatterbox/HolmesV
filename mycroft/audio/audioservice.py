@@ -350,7 +350,11 @@ class AudioService:
         if time.monotonic() - self.play_start_time > 1:
             LOG.debug('stopping all playing services')
             with self.service_lock:
-                self._perform_stop()
+                try:
+                    self._perform_stop()
+                except Exception as e:
+                    LOG.exception(e)
+                    LOG.error("failed to stop!")
         LOG.info('END Stop')
 
     def _lower_volume(self, message=None):
@@ -444,8 +448,12 @@ class AudioService:
     def _queue(self, message):
         if self.current:
             with self.service_lock:
-                tracks = message.data['tracks']
-                self.current.add_list(tracks)
+                try:
+                    tracks = message.data['tracks']
+                    self.current.add_list(tracks)
+                except Exception as e:
+                    LOG.exception(e)
+                    LOG.error("failed to queue tracks!")
         else:
             self._play(message)
 
@@ -463,15 +471,21 @@ class AudioService:
             repeat = message.data.get('repeat', False)
             # Find if the user wants to use a specific backend
             for s in self.service:
-                if ('utterance' in message.data and
-                        s.name in message.data['utterance']):
-                    prefered_service = s
-                    LOG.debug(s.name + ' would be prefered')
-                    break
+                try:
+                    if ('utterance' in message.data and
+                            s.name in message.data['utterance']):
+                        prefered_service = s
+                        LOG.debug(s.name + ' would be prefered')
+                        break
+                except Exception as e:
+                    LOG.error(f"failed to parse audio service name: {s}")
             else:
                 prefered_service = None
-            self.play(tracks, prefered_service, repeat)
-            time.sleep(0.5)
+            try:
+                self.play(tracks, prefered_service, repeat)
+                time.sleep(0.5)
+            except Exception as e:
+                LOG.exception(e)
 
     def _track_info(self, message):
         """
