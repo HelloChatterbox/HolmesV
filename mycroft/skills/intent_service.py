@@ -304,7 +304,10 @@ class IntentService:
 
                 # Launch skill if not handled by the match function
                 if match.intent_type:
-                    reply = message.reply(match.intent_type, match.intent_data)
+                    # keep original message.data and update with intent match
+                    data = dict(message.data)
+                    data.update(match.intent_data)
+                    reply = message.reply(match.intent_type, data)
                     self.bus.emit(reply)
 
             else:
