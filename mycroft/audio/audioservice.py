@@ -19,13 +19,12 @@ from os import listdir
 from os.path import abspath, dirname, basename, isdir, join
 from threading import Lock
 
+from mycroft.audio.services import RemoteAudioBackend
 from mycroft.configuration import Configuration
 from mycroft.messagebus.message import Message
 from mycroft.util.log import LOG
 from mycroft.util.monotonic_event import MonotonicEvent
 from mycroft.util.plugins import find_plugins
-
-from mycroft.audio.services import RemoteAudioBackend
 
 MINUTES = 60  # Seconds in a minute
 
@@ -295,6 +294,8 @@ class AudioService:
             Args:
                 message: message bus message, not used but required
         """
+        if not self._is_message_for_service(message):
+            return
         if self.current:
             self.current.pause()
 
@@ -305,6 +306,8 @@ class AudioService:
             Args:
                 message: message bus message, not used but required
         """
+        if not self._is_message_for_service(message):
+            return
         if self.current:
             self.current.resume()
 
@@ -316,6 +319,8 @@ class AudioService:
             Args:
                 message: message bus message, not used but required
         """
+        if not self._is_message_for_service(message):
+            return
         if self.current:
             self.current.next()
 
@@ -327,16 +332,25 @@ class AudioService:
             Args:
                 message: message bus message, not used but required
         """
+        if not self._is_message_for_service(message):
+            return
         if self.current:
             self.current.previous()
 
-    def _perform_stop(self):
+    def _perform_stop(self, message=None):
         """Stop audioservice if active."""
+        if not self._is_message_for_service(message):
+            return
         if self.current:
             name = self.current.name
             if self.current.stop():
-                self.bus.emit(Message("mycroft.stop.handled",
-                                      {"by": "audio:" + name}))
+                if message:
+                    msg = message.reply("mycroft.stop.handled",
+                                        {"by": "audio:" + name})
+                else:
+                    msg = Message("mycroft.stop.handled",
+                                  {"by": "audio:" + name})
+                self.bus.emit(msg)
 
         self.current = None
 
@@ -347,11 +361,13 @@ class AudioService:
             Args:
                 message: message bus message, not used but required
         """
+        if not self._is_message_for_service(message):
+            return
         if time.monotonic() - self.play_start_time > 1:
             LOG.debug('stopping all playing services')
             with self.service_lock:
                 try:
-                    self._perform_stop()
+                    self._perform_stop(message)
                 except Exception as e:
                     LOG.exception(e)
                     LOG.error("failed to stop!")
@@ -364,13 +380,17 @@ class AudioService:
             Args:
                 message: message bus message, not used but required
         """
+        if not self._is_message_for_service(message):
+            return
         if self.current:
             LOG.debug('lowering volume')
             self.current.lower_volume()
             self.volume_is_low = True
 
-    def _restore_volume(self, _=None):
+    def _restore_volume(self, message=None):
         """Triggered when mycroft is done speaking and restores the volume."""
+        if not self._is_message_for_service(message):
+            return
         current = self.current
         if current:
             LOG.debug('restoring volume')
@@ -386,6 +406,9 @@ class AudioService:
             Args:
                 message: message bus message, not used but required
         """
+        if not self._is_message_for_service(message):
+            return
+
         def restore_volume():
             LOG.debug('restoring volume')
             self.current.restore_volume()
@@ -445,7 +468,23 @@ class AudioService:
         self.current = selected_service
         self.play_start_time = time.monotonic()
 
+    @staticmethod
+    def _is_message_for_service(message):
+        if not message:
+            return True
+        destination = message.context.get("destination")
+        if destination:
+            if "audio" in destination or "debug_cli" in destination:
+                # request from device
+                return True
+            # external request, do not handle
+            return False
+        # broadcast for everyone
+        return True
+
     def _queue(self, message):
+        if not self._is_message_for_service(message):
+            return
         if self.current:
             with self.service_lock:
                 try:
@@ -466,6 +505,8 @@ class AudioService:
             Args:
                 message: message bus message, not used but required
         """
+        if not self._is_message_for_service(message):
+            return
         with self.service_lock:
             tracks = message.data['tracks']
             repeat = message.data.get('repeat', False)
@@ -494,15 +535,19 @@ class AudioService:
             Args:
                 message: message bus message, not used but required
         """
+        if not self._is_message_for_service(message):
+            return
         if self.current:
             track_info = self.current.track_info()
         else:
             track_info = {}
-        self.bus.emit(Message('mycroft.audio.service.track_info_reply',
-                              data=track_info))
+        self.bus.emit(message.reply('mycroft.audio.service.track_info_reply',
+                                    data=track_info))
 
     def _list_backends(self, message):
         """ Return a dict of available backends. """
+        if not self._is_message_for_service(message):
+            return
         data = {}
         for s in self.service:
             info = {
@@ -520,6 +565,8 @@ class AudioService:
             Args:
                 message: message bus message
         """
+        if not self._is_message_for_service(message):
+            return
         seconds = message.data.get("seconds", 1)
         if self.current:
             self.current.seek_forward(seconds)
@@ -531,6 +578,8 @@ class AudioService:
             Args:
                 message: message bus message
         """
+        if not self._is_message_for_service(message):
+            return
         seconds = message.data.get("seconds", 1)
         if self.current:
             self.current.seek_backward(seconds)
