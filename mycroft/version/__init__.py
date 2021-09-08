@@ -27,7 +27,7 @@ CORE_VERSION_MAJOR = 21
 CORE_VERSION_MINOR = 2
 CORE_VERSION_BUILD = 1
 SYNC_DATE = 20210908  # YYYYMMDD date of sync with mycroft-core
-PATCH_VERSION = 1  # increment by 1 on every HolmesV release
+PATCH_VERSION = 2  # increment by 1 on every HolmesV release
                     # set to 1 when SYNC_DATE changes
 # END_VERSION_BLOCK
 
