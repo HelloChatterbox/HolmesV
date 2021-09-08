@@ -123,6 +123,6 @@ class LOG:
                 name = module_name + ':' + record[3] + ':' + str(record[2])
             except Exception:
                 # The location couldn't be determined
-                name = 'HolmesIV'
+                name = 'HolmesV'
 
         func(cls.create_logger(name), *args, **kwargs)
