@@ -1,5 +1,3 @@
-# Copyright 2017 Mycroft AI Inc.
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,8 +19,7 @@ BASEDIR = os.path.abspath(os.path.dirname(__file__))
 
 
 def get_version():
-    """ Find the version of mycroft-core"""
-    version = None
+    """ Find the version of HolmesV"""
     version_file = os.path.join(BASEDIR, 'mycroft', 'version', '__init__.py')
     major, minor, build, date, patch = (None, None, None, None, None)
     with open(version_file) as f:
@@ -33,16 +30,14 @@ def get_version():
                 minor = line.split('=')[1].strip()
             elif 'CORE_VERSION_BUILD' in line:
                 build = line.split('=')[1].strip()
-            elif 'SYNC_DATE' in line:
+            elif 'RELEASE_DATE' in line:
                 date = line.split('=')[1].split("#")[0].strip()
-            elif 'PATCH_VERSION' in line:
-                patch = line.split('=')[1].split("#")[0].strip()
 
             if ((major and minor and build and patch and date) or
                     '# END_VERSION_BLOCK' in line):
                 break
-    mycroft_version = '.'.join([major, minor, build])
-    version = f'{date[:4]}.{date[4:6]}.{date[-2:]}.a{patch}'
+
+    version = f'{date[:4]}.{date[4:6]}.{date[-2:]}'
     return version
 
 
@@ -50,19 +45,16 @@ def required(requirements_file):
     """ Read requirements file and remove comments and empty lines. """
     with open(os.path.join(BASEDIR, requirements_file), 'r') as f:
         requirements = f.read().splitlines()
-        if 'MYCROFT_LOOSE_REQUIREMENTS' in os.environ:
-            print('USING LOOSE REQUIREMENTS!')
-            requirements = [r.replace('==', '>=') for r in requirements]
         return [pkg for pkg in requirements
                 if pkg.strip() and not pkg.startswith("#")]
 
 
 setup(
-    name='HolmesIV',
+    name='HolmesV',
     version=get_version(),
     license='Apache-2.0',
-    url='https://github.com/HelloChatterbox/HolmesIV',
-    description='mycroft-core packaged as a library you can rely on',
+    url='https://github.com/HelloChatterbox/HolmesV',
+    description='the library to build your own voice assistant',
     install_requires=required('requirements/minimal.txt'),
     extras_require={
         'audio-backend': required('requirements/extra-audiobackend.txt'),
@@ -79,7 +71,6 @@ setup(
     },
     packages=find_packages(include=['mycroft*']),
     include_package_data=True,
-
     entry_points={
         'console_scripts': [
             'mycroft-speech-client=mycroft.client.speech.__main__:main',
