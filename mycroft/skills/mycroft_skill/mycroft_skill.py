@@ -1310,7 +1310,7 @@ class MycroftSkill:
         re.compile(regex)  # validate regex
         self.intent_service.register_adapt_regex(regex)
 
-    def speak(self, utterance, expect_response=False, wait=False, meta=None):
+    def speak(self, utterance, expect_response=False, wait=True, meta=None):
         """Speak a sentence.
 
         Args:
@@ -1339,7 +1339,7 @@ class MycroftSkill:
         if wait:
             wait_while_speaking()
 
-    def speak_dialog(self, key, data=None, expect_response=False, wait=False):
+    def speak_dialog(self, key, data=None, expect_response=False, wait=True):
         """ Speak a random sentence from a dialog file.
 
         Args:
