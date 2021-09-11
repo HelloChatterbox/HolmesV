@@ -258,8 +258,8 @@ class MycroftSkill:
         """Get the configured secondary languages, mycroft is not
         considered to be in these languages but i will load it's resource
         files. This provides initial support for multilingual input"""
-        return [l for l in self.config_core.get('secondary_langs', [])
-                if l != self.lang]
+        return [lang for lang in self.config_core.get('secondary_langs', [])
+                if lang != self.lang]
 
     def _get_language_dir(self, base_path, lang=None):
         """ checks for all language variations and returns best path
@@ -529,7 +529,7 @@ class MycroftSkill:
         """
         data = data or {}
 
-        renderer = self.dialog_renderers.get(self.lang)
+        renderer = self.dialog_renderer
 
         def on_fail_default(utterance):
             fail_data = data.copy()
@@ -700,7 +700,7 @@ class MycroftSkill:
             utt (str): Utterance to be tested
             voc_filename (str): Name of vocabulary file (e.g. 'yes' for
                                 'res/text/en-us/yes.voc')
-            lang (str): Language code, defaults to self.long
+            lang (str): Language code, defaults to self.lang
             exact (bool): Whether the vocab must exactly match the utterance
 
         Returns:
@@ -837,7 +837,7 @@ class MycroftSkill:
         Returns:
             str: A randomly chosen string from the file
         """
-        renderer = self.dialog_renderers.get(self.lang)
+        renderer = self.dialog_renderer
         if not renderer:
             return ""
         return renderer.render(text, data or {})
@@ -1346,7 +1346,7 @@ class MycroftSkill:
             wait (bool):            set to True to block while the text
                                     is being spoken.
         """
-        renderer = self.dialog_renderers.get(self.lang)
+        renderer = self.dialog_renderer
         if renderer:
             data = data or {}
             self.speak(
@@ -1380,10 +1380,10 @@ class MycroftSkill:
     def _load_dialog_files(self, root_directory, lang):
         # If "<skill>/dialog/<lang>" exists, load from there.  Otherwise
         # load dialog from "<skill>/locale/<lang>"
-        dialog_dir = self._get_language_dir(join(root_directory, 'dialog'),
-                                           lang)
-        locale_dir = self._get_language_dir(join(root_directory, 'locale'),
-                                            lang)
+        dialog_dir = self._get_language_dir(
+            join(root_directory, 'dialog'), lang)
+        locale_dir = self._get_language_dir(
+            join(root_directory, 'locale'), lang)
         if exists(dialog_dir):
             self.dialog_renderers[lang] = load_dialogs(dialog_dir)
         elif exists(locale_dir):
