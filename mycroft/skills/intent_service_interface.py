@@ -44,7 +44,7 @@ class IntentServiceInterface:
     def set_id(self, skill_id):
         self.skill_id = skill_id
 
-    def register_adapt_keyword(self, vocab_type, entity, aliases=None):
+    def register_adapt_keyword(self, vocab_type, entity, aliases=None, lang=None):
         """Send a message to the intent service to add an Adapt keyword.
 
             vocab_type(str): Keyword reference
@@ -56,12 +56,17 @@ class IntentServiceInterface:
         if "skill_id" not in msg.context:
             msg.context["skill_id"] = self.skill_id
         self.bus.emit(msg.forward("register_vocab",
-                              {'start': entity, 'end': vocab_type}))
+                                  {'start': entity,
+                                   'end': vocab_type,
+                                   'lang': lang}))
         for alias in aliases:
-            self.bus.emit(msg.forward("register_vocab", {
-                'start': alias, 'end': vocab_type, 'alias_of': entity}))
+            self.bus.emit(msg.forward("register_vocab",
+                                      {'start': alias,
+                                       'end': vocab_type,
+                                       'alias_of': entity,
+                                       'lang': lang}))
 
-    def register_adapt_regex(self, regex):
+    def register_adapt_regex(self, regex, lang=None):
         """Register a regex with the intent service.
 
         Args:
@@ -71,7 +76,8 @@ class IntentServiceInterface:
         msg = dig_for_message() or Message("")
         if "skill_id" not in msg.context:
             msg.context["skill_id"] = self.skill_id
-        self.bus.emit(msg.forward("register_vocab", {'regex': regex}))
+        self.bus.emit(msg.forward("register_vocab",
+                                  {'regex': regex, 'lang': lang}))
 
     def register_adapt_intent(self, name, intent_parser):
         """Register an Adapt intent parser object.
@@ -133,7 +139,7 @@ class IntentServiceInterface:
             msg.context["skill_id"] = self.skill_id
         self.bus.emit(msg.forward('remove_context', {'context': context}))
 
-    def register_padatious_intent(self, intent_name, filename):
+    def register_padatious_intent(self, intent_name, filename, lang):
         """Register a padatious intent file with Padatious.
 
         Args:
@@ -145,15 +151,16 @@ class IntentServiceInterface:
         if not exists(filename):
             raise FileNotFoundError('Unable to find "{}"'.format(filename))
 
-        data = {"file_name": filename,
-                "name": intent_name}
+        data = {'file_name': filename,
+                'name': intent_name,
+                'lang': lang}
         msg = dig_for_message() or Message("")
         if "skill_id" not in msg.context:
             msg.context["skill_id"] = self.skill_id
         self.bus.emit(msg.forward("padatious:register_intent", data))
         self.registered_intents.append((intent_name.split(':')[-1], data))
 
-    def register_padatious_entity(self, entity_name, filename):
+    def register_padatious_entity(self, entity_name, filename, lang):
         """Register a padatious entity file with Padatious.
 
         Args:
@@ -168,8 +175,9 @@ class IntentServiceInterface:
         if "skill_id" not in msg.context:
             msg.context["skill_id"] = self.skill_id
         self.bus.emit(msg.forward('padatious:register_entity',
-                              {'file_name': filename,
-                               'name': entity_name}))
+                                  {'file_name': filename,
+                                   'name': entity_name,
+                                   'lang': lang}))
 
     def __iter__(self):
         """Iterator over the registered intents.
