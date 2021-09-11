@@ -1122,7 +1122,7 @@ class MycroftSkill:
             if not filename:
                 self.log.error('Unable to find "{}"'.format(intent_file))
                 continue
-            self.intent_service.register_padatious_intent(name, filename)
+            self.intent_service.register_padatious_intent(name, filename, lang)
             if handler:
                 self.add_event(name, handler, 'mycroft.skill.handler')
 
@@ -1154,7 +1154,7 @@ class MycroftSkill:
                 continue
             name = '{}:{}'.format(self.skill_id, entity_file)
             # TODO validate this, will it extend prev entity or replace it ?
-            self.intent_service.register_padatious_entity(name, filename)
+            self.intent_service.register_padatious_entity(name, filename, lang)
 
     def handle_enable_intent(self, message):
         """Listener to enable a registered intent if it belongs to this skill.
@@ -1290,9 +1290,10 @@ class MycroftSkill:
         msg = dig_for_message() or Message("")
         if "skill_id" not in msg.context:
             msg.context["skill_id"] = self.skill_id
-        self.bus.emit(msg.forward('register_vocab',
-                              {'start': entity,
-                               'end': to_alnum(self.skill_id) + entity_type}))
+        self.bus.emit(msg.forward('register_vocab', {
+            'start': entity,
+            'end': to_alnum(self.skill_id) + entity_type,
+            'lang': self.lang}))
 
     def register_regex(self, regex_str):
         """Register a new regex.
@@ -1302,7 +1303,7 @@ class MycroftSkill:
         self.log.debug('registering regex string: ' + regex_str)
         regex = munge_regex(regex_str, self.skill_id)
         re.compile(regex)  # validate regex
-        self.intent_service.register_adapt_regex(regex)
+        self.intent_service.register_adapt_regex(regex, self.lang)
 
     def speak(self, utterance, expect_response=False, wait=True, meta=None):
         """Speak a sentence.
@@ -1322,12 +1323,12 @@ class MycroftSkill:
         self.enclosure.register(self.name)
         data = {'utterance': utterance,
                 'expect_response': expect_response,
-                'meta': meta}
+                'meta': meta,
+                'lang': self.lang}
         message = dig_for_message()
         m = message.forward("speak", data) if message \
             else Message("speak", data)
         m.context["skill_id"] = self.skill_id
-        m.data["lang"] = self.lang
         self.bus.emit(m)
 
         if wait:
@@ -1427,7 +1428,8 @@ class MycroftSkill:
                 aliases = line[1:]
                 self.intent_service.register_adapt_keyword(vocab_type,
                                                            entity,
-                                                           aliases)
+                                                           aliases,
+                                                           lang)
 
     def load_vocab_files(self, root_directory):
         """ Load vocab files found under root_directory.
@@ -1455,7 +1457,7 @@ class MycroftSkill:
             regexes = load_regex(locale_dir, self.skill_id)
 
         for regex in regexes:
-            self.intent_service.register_adapt_regex(regex)
+            self.intent_service.register_adapt_regex(regex, lang)
 
     def load_regex_files(self, root_directory):
         """ Load regex files found under the skill directory.

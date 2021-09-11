@@ -370,6 +370,7 @@ class IntentService:
                     if match:
                         break
             if match:
+                print(match)
                 if match.skill_id:
                     self.add_active_skill(match.skill_id)
                     # If the service didn't report back the skill_id it
@@ -438,8 +439,9 @@ class IntentService:
         end_concept = message.data.get('end')
         regex_str = message.data.get('regex')
         alias_of = message.data.get('alias_of')
+        lang = message.data.get('lang')
         self.adapt_service.register_vocab(start_concept, end_concept,
-                                          alias_of, regex_str)
+                                          alias_of, regex_str, lang)
         self.registered_vocab.append(message.data)
 
     def handle_register_intent(self, message):

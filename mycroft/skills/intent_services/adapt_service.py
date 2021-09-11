@@ -20,6 +20,7 @@ from adapt.context import ContextManagerFrame
 from adapt.engine import IntentDeterminationEngine
 from adapt.intent import IntentBuilder
 
+from mycroft.configuration import Configuration
 from mycroft.util.log import LOG
 from mycroft.skills.intent_services.base import IntentMatch
 
@@ -170,7 +171,14 @@ class AdaptService:
     """Intent service wrapping the Apdapt intent Parser."""
     def __init__(self, config):
         self.config = config
-        self.engine = IntentDeterminationEngine()
+
+        self.lang = Configuration.get().get("lang", "en-us")
+        self.langs = Configuration.get().get('secondary_langs', [])
+        if self.lang not in self.langs:
+            self.langs.append(self.lang)
+
+        self.engines = {lang: IntentDeterminationEngine()
+                        for lang in self.langs}
         # Context related intializations
         self.context_keywords = self.config.get('keywords', [])
         self.context_max_frames = self.config.get('max_frames', 3)
@@ -198,7 +206,7 @@ class AdaptService:
             elif context_entity['data'][0][1] in self.context_keywords:
                 self.context_manager.inject_context(context_entity)
 
-    def match_intent(self, utterances, _=None, __=None):
+    def match_intent(self, utterances, lang=None, __=None):
         """Run the Adapt engine to search for an matching intent.
 
         Args:
@@ -212,51 +220,56 @@ class AdaptService:
         Returns:
             Intent structure, or None if no match was found.
         """
-        best_intent = {}
+        lang = lang or self.lang
+        if lang in self.langs:
+            best_intent = {}
 
-        def take_best(intent, utt):
-            nonlocal best_intent
-            best = best_intent.get('confidence', 0.0) if best_intent else 0.0
-            conf = intent.get('confidence', 0.0)
-            if conf > best:
-                best_intent = intent
-                # TODO - Shouldn't Adapt do this?
-                best_intent['utterance'] = utt
+            def take_best(intent, utt):
+                nonlocal best_intent
+                best = best_intent.get('confidence', 0.0) if best_intent else 0.0
+                conf = intent.get('confidence', 0.0)
+                if conf > best:
+                    best_intent = intent
+                    # TODO - Shouldn't Adapt do this?
+                    best_intent['utterance'] = utt
 
-        for utt_tup in utterances:
-            for utt in utt_tup:
-                try:
-                    intents = [i for i in self.engine.determine_intent(
-                        utt, 100,
-                        include_tags=True,
-                        context_manager=self.context_manager)]
-                    if intents:
-                        utt_best = max(
-                            intents, key=lambda x: x.get('confidence', 0.0)
-                        )
-                        take_best(utt_best, utt_tup[0])
+            for utt_tup in utterances:
+                for utt in utt_tup:
+                    try:
+                        intents = [
+                            i for i in self.engines.get(lang).determine_intent(
+                                utt, 100,
+                                include_tags=True,
+                                context_manager=self.context_manager)]
+                        if intents:
+                            utt_best = max(
+                                intents, key=lambda x: x.get('confidence', 0.0)
+                            )
+                            take_best(utt_best, utt_tup[0])
 
-                except Exception as err:
-                    LOG.exception(err)
+                    except Exception as err:
+                        LOG.exception(err)
 
-        if best_intent:
-            self.update_context(best_intent)
-            skill_id = best_intent['intent_type'].split(":")[0]
-            ret = IntentMatch(
-                'Adapt', best_intent['intent_type'], best_intent, skill_id
-            )
-        else:
-            ret = None
-        return ret
-
-    def register_vocab(self, start_concept, end_concept, alias_of, regex_str):
-        """Register vocabulary."""
-        with self.lock:
-            if regex_str:
-                self.engine.register_regex_entity(regex_str)
+            if best_intent:
+                self.update_context(best_intent)
+                skill_id = best_intent['intent_type'].split(":")[0]
+                ret = IntentMatch(
+                    'Adapt', best_intent['intent_type'], best_intent, skill_id
+                )
             else:
-                self.engine.register_entity(
-                    start_concept, end_concept, alias_of=alias_of)
+                ret = None
+            return ret
+
+    def register_vocab(
+            self, start_concept, end_concept, alias_of, regex_str, lang):
+        """Register vocabulary."""
+        if lang in self.langs:
+            with self.lock:
+                if regex_str:
+                    self.engines.get(lang).register_regex_entity(regex_str)
+                else:
+                    self.engines.get(lang).register_entity(
+                        start_concept, end_concept, alias_of=alias_of)
 
     def register_intent(self, intent):
         """Register new intent with adapt engine.
@@ -264,8 +277,9 @@ class AdaptService:
         Args:
             intent (IntentParser): IntentParser to register
         """
-        with self.lock:
-            self.engine.register_intent_parser(intent)
+        for lang in self.langs:
+            with self.lock:
+                self.engines.get(lang).register_intent_parser(intent)
 
     def detach_skill(self, skill_id):
         """Remove all intents for skill.
@@ -274,11 +288,12 @@ class AdaptService:
             skill_id (str): skill to process
         """
         with self.lock:
-            skill_parsers = [
-                p.name for p in self.engine.intent_parsers if
-                p.name.startswith(skill_id)
-            ]
-            self.engine.drop_intent_parser(skill_parsers)
+            for lang in self.langs:
+                skill_parsers = [
+                    p.name for p in self.engines.get(lang).intent_parsers if
+                    p.name.startswith(skill_id)
+                ]
+                self.engines.get(lang).drop_intent_parser(skill_parsers)
             self._detach_skill_keywords(skill_id)
             self._detach_skill_regexes(skill_id)
 
@@ -293,7 +308,8 @@ class AdaptService:
         def match_skill_entities(data):
             return data and data[1].startswith(skill_id)
 
-        self.engine.drop_entity(match_func=match_skill_entities)
+        for lang in self.langs:
+            self.engines.get(lang).drop_entity(match_func=match_skill_entities)
 
     def _detach_skill_regexes(self, skill_id):
         """Detach all regexes registered with a particular skill.
@@ -307,7 +323,8 @@ class AdaptService:
             return any([r.startswith(skill_id)
                         for r in regexp.groupindex.keys()])
 
-        self.engine.drop_regex_entity(match_func=match_skill_regexes)
+        for lang in self.langs:
+            self.engines.get(lang).drop_regex_entity(match_func=match_skill_regexes)
 
     def detach_intent(self, intent_name):
         """Detatch a single intent
@@ -315,7 +332,8 @@ class AdaptService:
         Args:
             intent_name (str): Identifier for intent to remove.
         """
-        new_parsers = [
-            p for p in self.engine.intent_parsers if p.name != intent_name
-        ]
-        self.engine.intent_parsers = new_parsers
+        for lang in self.langs:
+            new_parsers = [
+                p for p in self.engines.get(lang).intent_parsers if p.name != intent_name
+            ]
+            self.engines.get(lang).intent_parsers = new_parsers
