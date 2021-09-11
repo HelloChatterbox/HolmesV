@@ -370,7 +370,6 @@ class IntentService:
                     if match:
                         break
             if match:
-                print(match)
                 if match.skill_id:
                     self.add_active_skill(match.skill_id)
                     # If the service didn't report back the skill_id it
