@@ -170,6 +170,16 @@ class MycroftSkill:
     def dialog_renderer(self):
         if self.lang in self.langs:
             return self.dialog_renderers.get(self.lang)
+        # Try to load the dialect renderer
+        root_directory = self.root_dir
+        dialog_dir = self._get_language_dir(
+            join(root_directory, 'dialog'), self.lang)
+        if exists(dialog_dir):
+            return load_dialogs(dialog_dir)
+        locale_dir = self._get_language_dir(
+            join(root_directory, 'locale'), self.lang)
+        if exists(locale_dir):
+            return load_dialogs(locale_dir)
         # Use different dialect
         lang2 = self.lang.split('-')[0]
         for lang in self.langs:
