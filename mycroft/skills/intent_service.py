@@ -81,6 +81,11 @@ class IntentService:
         self.bus = bus
         config = Configuration.get()
 
+        self.lang = config.get("lang", "en-us")
+        self.langs = config.get('secondary_langs', [])
+        if self.lang not in self.langs:
+            self.langs.append(self.lang)
+
         # Dictionary for translating a skill id to a name
         self.skill_names = {}
 
@@ -347,6 +352,17 @@ class IntentService:
         try:
             lang = _get_message_lang(message)
             setup_locale(lang)  # set default lang
+
+            if lang not in self.langs:
+                lang2 = lang.split('-')[0]
+                for supported_lang in self.langs:
+                    if supported_lang.startswith(lang2):
+                        lang = supported_lang
+                        break
+            if lang not in self.langs:
+                self.bus.emit(message.reply(
+                    'speak',
+                    {'utterance': 'Language not supported', 'lang': 'en-us'}))
 
             utterances = message.data.get('utterances', [])
             combined = _normalize_all_utterances(utterances)

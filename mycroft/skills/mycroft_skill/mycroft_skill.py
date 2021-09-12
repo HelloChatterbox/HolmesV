@@ -168,8 +168,15 @@ class MycroftSkill:
 
     @property
     def dialog_renderer(self):
-        # backwards compat
-        return self.dialog_renderers.get(self.lang)
+        if self.lang in self.langs:
+            return self.dialog_renderers.get(self.lang)
+        # Use different dialect
+        lang2 = self.lang.split('-')[0]
+        for lang in self.langs:
+            if lang.startswith(lang2):
+                return self.dialog_renderers.get(lang)
+        # Fall back to main language
+        return self.dialog_renderers.get(self.config_core.get('lang', 'en-us'))
 
     def _init_settings(self):
         """Setup skill settings."""
@@ -254,12 +261,15 @@ class MycroftSkill:
         return core_lang
 
     @property
-    def secondary_langs(self):
+    def langs(self):
         """Get the configured secondary languages, mycroft is not
         considered to be in these languages but i will load it's resource
         files. This provides initial support for multilingual input"""
-        return [lang for lang in self.config_core.get('secondary_langs', [])
-                if lang != self.lang]
+        lang = self.config_core.get('lang', 'en-us')
+        langs = self.config_core.get('secondary_langs', [])
+        if lang not in langs:
+            langs.append(lang)
+        return langs
 
     def _get_language_dir(self, base_path, lang=None):
         """ checks for all language variations and returns best path
@@ -1113,7 +1123,7 @@ class MycroftSkill:
             handler:     function to register with intent
         """
         # NOTE we need an intent per lang in padatious
-        langs = [self.lang] + self.secondary_langs
+        langs = self.langs
         for lang in langs:
             # NOTE will be split at : can not use that to join lang in name
             name = f'{self.skill_id}:{intent_file}_{lang}'
@@ -1144,7 +1154,7 @@ class MycroftSkill:
         """
         if entity_file.endswith('.entity'):
             entity_file = entity_file.replace('.entity', '')
-        langs = [self.lang] + self.secondary_langs
+        langs = self.langs
         for lang in langs:
             filename = self.find_resource(entity_file + ".entity", 'vocab',
                                           lang=lang)
@@ -1186,7 +1196,7 @@ class MycroftSkill:
             self.intent_service.detach_intent(name)
 
             # NOTE we need an intent per lang in padatious
-            langs = [self.lang] + self.secondary_langs
+            langs = self.langs
             for lang in langs:
                 lang_intent_name = f'{name}_{lang}'
                 self.intent_service.detach_intent(lang_intent_name)
@@ -1392,8 +1402,7 @@ class MycroftSkill:
             LOG.debug(f'No dialog loaded for {lang}')
 
     def init_dialog(self, root_directory):
-        self._load_dialog_files(root_directory, self.lang)
-        for lang in self.secondary_langs:
+        for lang in self.langs:
             self._load_dialog_files(root_directory, lang)
 
     def load_data_files(self, root_directory=None):
@@ -1436,8 +1445,7 @@ class MycroftSkill:
         Args:
             root_directory (str): root folder to use when loading files
         """
-        self._load_vocab_files(root_directory, self.lang)
-        for lang in self.secondary_langs:
+        for lang in self.langs:
             self._load_vocab_files(root_directory, lang)
 
     def _load_regex_files(self, root_directory, lang):
@@ -1464,8 +1472,7 @@ class MycroftSkill:
         Args:
             root_directory (str): root folder to use when loading files
         """
-        self._load_regex_files(root_directory, self.lang)
-        for lang in self.secondary_langs:
+        for lang in self.langs:
             self._load_regex_files(root_directory, lang)
 
     def __handle_stop(self, message):
