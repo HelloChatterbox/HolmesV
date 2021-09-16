@@ -45,7 +45,7 @@ class PadatiousMatcher:
                                          with optional normalized version.
             limit (float): required confidence level.
         """
-        if not self.have_result:
+        if not self.has_result:
             lang = lang or self.service.lang
             padatious_intent = None
             LOG.debug('Padatious Matching confidence > {}'.format(limit))
