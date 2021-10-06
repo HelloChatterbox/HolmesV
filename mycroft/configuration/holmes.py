@@ -79,19 +79,27 @@ def get_holmes_config():
               "config_filename": "mycroft.conf",
               "default_config_path": join(dirname(__file__), "mycroft.conf")}
 
-    if isfile("/etc/HolmesV/holmes.conf"):
-        config = merge_dict(config,
-                            load_commented_json("/etc/HolmesV/holmes.conf"))
-    elif isfile("/etc/mycroft/holmes.conf"):
-        config = merge_dict(config,
-                            load_commented_json("/etc/mycroft/holmes.conf"))
+    try:
+        if isfile("/etc/HolmesV/holmes.conf"):
+            config = merge_dict(config,
+                                load_commented_json("/etc/HolmesV/holmes.conf"))
+        elif isfile("/etc/mycroft/holmes.conf"):
+            config = merge_dict(config,
+                                load_commented_json("/etc/mycroft/holmes.conf"))
+    except:
+        # tolerate bad json TODO proper exception (?)
+        pass
 
     # This includes both the user config and
     # /etc/xdg/HolmesV/holmes.conf
     for p in xdg.BaseDirectory.load_config_paths("HolmesV"):
         if isfile(join(p, "holmes.conf")):
-            xdg_cfg = load_commented_json(join(p, "holmes.conf"))
-            config = merge_dict(config, xdg_cfg)
+            try:
+                xdg_cfg = load_commented_json(join(p, "holmes.conf"))
+                config = merge_dict(config, xdg_cfg)
+            except:
+                # tolerate bad json TODO proper exception (?)
+                pass
 
     # let's check for derivatives specific configs
     # the assumption is that these cores are exclusive to each other,
