@@ -17,6 +17,7 @@ import inflection
 import json
 from os.path import exists, isfile, join
 import re
+import yaml
 
 from requests import RequestException
 import xdg.BaseDirectory
@@ -96,9 +97,14 @@ class LocalConf(dict):
         Args:
             path (str): file to load
         """
+
         if exists(path) and isfile(path):
             try:
-                config = load_commented_json(path)
+                if path.endswith(".yml"):
+                    with open(path, 'r') as file:
+                        config = yaml.safe_load(file)
+                else:
+                    config = load_commented_json(path)
                 for key in config:
                     self.__setitem__(key, config[key])
 
@@ -239,7 +245,7 @@ class Configuration:
             configs = [LocalConf(DEFAULT_CONFIG),
                        LocalConf(SYSTEM_CONFIG)]
             if remote:
-                   configs.append(RemoteConf())
+               configs.append(RemoteConf())
 
             if is_using_xdg():
                 # deprecation warning
@@ -262,17 +268,17 @@ class Configuration:
             for index, item in enumerate(configs):
                 if isinstance(item, str):
                     configs[index] = LocalConf(item)
+                if isinstance(item, dict):
+                    configs[index] = item
 
-        # Merge all configs into one
+                    # Merge all configs into one
         base = {}
         for c in configs:
-            merge_dict(base, c)
+            base = merge_dict(base, c)
 
         # copy into cache
         if cache:
-            Configuration.__config.clear()
-            for key in base:
-                Configuration.__config[key] = base[key]
+            Configuration.__config = dict(base)
             return Configuration.__config
         else:
             return base
