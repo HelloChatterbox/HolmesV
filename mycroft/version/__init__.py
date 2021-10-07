@@ -26,7 +26,7 @@ from mycroft.util.log import LOG
 CORE_VERSION_MAJOR = 21
 CORE_VERSION_MINOR = 2
 CORE_VERSION_BUILD = 1
-RELEASE_DATE = 20210908  # YYYYMMDD date of sync with mycroft-core
+RELEASE_DATE = 20211008  # YYYYMMDD date of release
 
 # END_VERSION_BLOCK
 
